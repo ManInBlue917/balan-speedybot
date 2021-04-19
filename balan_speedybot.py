@@ -1,4 +1,5 @@
 import os
+import json
 
 #Discord Connections
 import discord
@@ -8,6 +9,9 @@ from dotenv import load_dotenv
 import datetime
 import srcomapi, srcomapi.datatypes as dt
 api = srcomapi.SpeedrunCom(); api.debug = 1
+
+# with open('strats.json') as f:
+#     strat_json = json.load(f)
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -29,6 +33,10 @@ async def on_message(message):
     if message.author == client.user:
         return
     
+    #Help
+    if message.content == '!help':
+        await message.channel.send('**HELP**:\n- !wr [Category]\n- !role [role name]\n- !strats [area] [strat name]')
+
     #view WRs
     if message.content.startswith('!wr'):
         src_game = api.search(dt.Game, {"name": "balan wonderworld"})[0]
@@ -61,6 +69,10 @@ async def on_message(message):
 
         await message.channel.send(response)
     
+    #Bot Introduction
+    if message.content == '!intro':
+        await message.channel.send('Hello, I\'m Balan Speedybot and I\'m here to help. I can give you roles and tell you world records and strats. Use the commands **!role**, **!wr** and **!strats** and I can help you out!\n\nUse **!help** for instrctions on using the commands and keep the majority of my use in #bot-spam')
+
     #self assign roles
     if message.content.startswith('!role'):
         commands = message.content.replace('!role', '')
@@ -95,5 +107,45 @@ async def on_message(message):
                     await message.channel.send('Role Added!')
             else:
                 await message.channel.send('Please Input A Valid Role.')
+    
+    #Show Strats
+    if message.content.startswith('!strats'):
+        with open('strats.json') as f:
+            strat_json = json.load(f)
+        
+        commands = message.content.replace('!strats', '')
+        commands = commands.strip()
+
+        level_keys = []
+        for i in strat_json['Strats'].keys():
+            level_keys.append(i)
+
+        if commands == '':
+            response = 'Available Areas For Strats:\n'
+            for i in level_keys:
+                response += f'- {i}\n'
+        elif commands == level_keys[0]:
+            response = strat_json['Strats'][commands]
+        elif any(commands.startswith(s) for s in level_keys):
+            if commands in level_keys:
+                response = 'Available strats in this area:\n'
+                for strat in strat_json['Strats'][commands]:
+                    response += f'- {strat}\n'
+            else:
+                commands = commands.split(" ", 1)
+                try:
+                    response = f'{commands[1]}:\n'
+                    response += strat_json['Strats'][commands[0]][commands[1]]
+                except:
+                    response = 'Please enter a valid strat'
+        else:
+            response = 'Please put in a valid area of strats'
+
+        await message.channel.send(response)
+
+@client.event
+async def on_user_update(before, after):
+    print(before)
+    print(after)
 
 client.run(TOKEN)
